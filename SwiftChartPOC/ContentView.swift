@@ -11,23 +11,37 @@ import Charts
 struct ContentView: View {
     @StateObject
     private var state = ViewState()
-    private var data: [(Double, Double)] {
-        Array(zip(state.distanceData, state.altitudeData))
-    }
 
     var body: some View {
-        VStack {
+        if state.data.isEmpty {
             Button {
                 state.parse()
             } label: {
                 Text("Load")
             }
-
-            Chart(data, id: \.0) { (distance, altitude) in
-                LineMark(
-                    x: .value("Distance", distance),
-                    y: .value("Altitude", altitude)
-                )
+        } else if let minDataDistance = state.data.first?.0,
+                  let maxDataDistance = state.data.last?.0 {
+            VStack {
+                Chart(state.data, id: \.0) { (distance, altitude) in
+                    LineMark(
+                        x: .value("Distance", distance),
+                        y: .value("Altitude", altitude)
+                    )
+                }
+                Slider(value: $state.minDistance, in: minDataDistance...maxDataDistance, step: 0.5) {
+                    Text("始点")
+                } minimumValueLabel: {
+                    Text("\(minDataDistance)")
+                } maximumValueLabel: {
+                    Text("\(maxDataDistance)")
+                }
+                Slider(value: $state.maxDistance, in: minDataDistance...maxDataDistance, step: 0.5) {
+                    Text("始点")
+                } minimumValueLabel: {
+                    Text("\(minDataDistance)")
+                } maximumValueLabel: {
+                    Text("\(maxDataDistance)")
+                }
             }
         }
     }
@@ -38,8 +52,32 @@ struct ContentView: View {
             case distance = "DistanceMeters"
         }
 
+        var minDistance = 0.0
+        var maxDistance = 0.0
+        var data: [(Double, Double)] {
+            let indicies = distanceData.indices
+            guard let lowerIndex = distanceData.firstIndex(where: { distance in
+                distance >= minDistance
+            }),
+                  let upperIndex = distanceData.firstIndex(where: { distance in
+                      distance <= maxDistance
+                  }),
+                  indicies.contains(lowerIndex),
+                  indicies.contains(upperIndex),
+                  lowerIndex <= upperIndex else {
+                return Array(zip(distanceData, altitudeData))
+            }
+
+            return Array(zip(distanceData[lowerIndex...upperIndex], altitudeData[lowerIndex...upperIndex]))
+        }
+
         private(set) var altitudeData = [Double]()
-        private(set) var distanceData = [Double]()
+        private(set) var distanceData = [Double]() {
+            didSet {
+                minDistance = distanceData.min() ?? 0.0
+                maxDistance = distanceData.max() ?? 0.0
+            }
+        }
 
         private var isParsingTrack = false
         private var parsingElementName: String?
