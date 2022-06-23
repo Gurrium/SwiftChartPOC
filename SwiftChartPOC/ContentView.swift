@@ -20,7 +20,8 @@ struct ContentView: View {
                 Text("Load")
             }
         } else if let minDataDistance = state.data.first?.0,
-                  let maxDataDistance = state.data.last?.0 {
+                  let maxDataDistance = state.data.last?.0,
+                  minDataDistance < maxDataDistance {
             VStack {
                 Chart(state.data, id: \.0) { (distance, altitude) in
                     LineMark(
@@ -52,18 +53,20 @@ struct ContentView: View {
             case distance = "DistanceMeters"
         }
 
+        @Published
         var minDistance = 0.0
+        @Published
         var maxDistance = 0.0
         var data: [(Double, Double)] {
-            let indicies = distanceData.indices
-            guard let lowerIndex = distanceData.firstIndex(where: { distance in
-                distance >= minDistance
-            }),
-                  let upperIndex = distanceData.firstIndex(where: { distance in
+            let indices = distanceData.indices
+            guard let lowerIndex = distanceData.lastIndex(where: { distance in
+                      distance <= minDistance
+                  }),
+                  let upperIndex = distanceData.lastIndex(where: { distance in
                       distance <= maxDistance
                   }),
-                  indicies.contains(lowerIndex),
-                  indicies.contains(upperIndex),
+                  indices.contains(lowerIndex),
+                  indices.contains(upperIndex),
                   lowerIndex <= upperIndex else {
                 return Array(zip(distanceData, altitudeData))
             }
@@ -72,12 +75,7 @@ struct ContentView: View {
         }
 
         private(set) var altitudeData = [Double]()
-        private(set) var distanceData = [Double]() {
-            didSet {
-                minDistance = distanceData.min() ?? 0.0
-                maxDistance = distanceData.max() ?? 0.0
-            }
-        }
+        private(set) var distanceData = [Double]()
 
         private var isParsingTrack = false
         private var parsingElementName: String?
@@ -123,6 +121,8 @@ struct ContentView: View {
         }
 
         func parserDidEndDocument(_ parser: XMLParser) {
+            minDistance = distanceData.min() ?? 0.0
+            maxDistance = distanceData.max() ?? 0.0
             objectWillChange.send()
         }
     }
