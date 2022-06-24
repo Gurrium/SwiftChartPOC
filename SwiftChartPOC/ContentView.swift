@@ -11,6 +11,23 @@ import Charts
 struct ContentView: View {
     @StateObject
     private var state = ViewState()
+    var displayData: [(Double, Double)] {
+        let indices = state.data.indices
+        guard
+            let lowerIndex = state.data.lastIndex(where: { data in
+                data.0 <= state.minDistance
+            }),
+            let upperIndex = state.data.lastIndex(where: { data in
+                data.0 <= state.maxDistance
+            }),
+            indices.contains(lowerIndex),
+            indices.contains(upperIndex),
+            lowerIndex <= upperIndex else {
+            return state.data
+        }
+
+        return Array(state.data[lowerIndex...upperIndex])
+    }
 
     var body: some View {
         if state.data.isEmpty {
@@ -23,7 +40,8 @@ struct ContentView: View {
                   let maxDataDistance = state.data.last?.0,
                   minDataDistance < maxDataDistance {
             VStack {
-                Chart(state.data, id: \.0) { (distance, altitude) in
+                Text("\(state.minDistance)~\(state.maxDistance)")
+                Chart(displayData, id: \.0) { (distance, altitude) in
                     LineMark(
                         x: .value("Distance", distance),
                         y: .value("Altitude", altitude)
@@ -37,7 +55,7 @@ struct ContentView: View {
                     Text("\(maxDataDistance)")
                 }
                 Slider(value: $state.maxDistance, in: minDataDistance...maxDataDistance, step: 0.5) {
-                    Text("始点")
+                    Text("終点")
                 } minimumValueLabel: {
                     Text("\(minDataDistance)")
                 } maximumValueLabel: {
@@ -58,25 +76,12 @@ struct ContentView: View {
         @Published
         var maxDistance = 0.0
         var data: [(Double, Double)] {
-            let indices = distanceData.indices
-            guard let lowerIndex = distanceData.lastIndex(where: { distance in
-                      distance <= minDistance
-                  }),
-                  let upperIndex = distanceData.lastIndex(where: { distance in
-                      distance <= maxDistance
-                  }),
-                  indices.contains(lowerIndex),
-                  indices.contains(upperIndex),
-                  lowerIndex <= upperIndex else {
-                return Array(zip(distanceData, altitudeData))
-            }
-
-            return Array(zip(distanceData[lowerIndex...upperIndex], altitudeData[lowerIndex...upperIndex]))
+            let data = Array(zip(distanceData, altitudeData))
+            return data.indices.lazy.filter { $0 % 100 == 0 }.map({ data[$0] })
         }
 
-        private(set) var altitudeData = [Double]()
-        private(set) var distanceData = [Double]()
-
+        private var altitudeData = [Double]()
+        private var distanceData = [Double]()
         private var isParsingTrack = false
         private var parsingElementName: String?
 
